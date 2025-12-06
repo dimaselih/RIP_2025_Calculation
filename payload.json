@@ -1,0 +1,12 @@
+{
+  "calculation_id": 67,
+  "callback_url": "http://127.0.0.1:8000/api/calculation_tco/67/async-result/",
+  "start_date": "2025-12-19",
+  "end_date": "2027-10-19",
+  "services": [
+    {"id":4,"price":200000,"price_type":"one_time","quantity":1},
+    {"id":6,"price":2100,"price_type":"monthly","quantity":1},
+    {"id":3,"price":6700,"price_type":"monthly","quantity":1},
+    {"id":2,"price":12500,"price_type":"monthly","quantity":1}
+  ]
+}
