@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type serviceItem struct {
@@ -35,45 +37,39 @@ type calcResult struct {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	http.HandleFunc("/process", processHandler)
-
 	addr := getEnv("LISTEN_ADDR", ":8081")
 	log.Printf("Async calc service listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	router := gin.Default()
+	router.POST("/process", processHandler)
+	if err := router.Run(addr); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func processHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func processHandler(c *gin.Context) {
 	// Простая авторизация по токену
-	token := r.Header.Get("X-ASYNC-TOKEN")
+	token := c.GetHeader("X-ASYNC-TOKEN")
 	expected := getEnv("ASYNC_SERVICE_TOKEN", "async-secret")
 	if token == "" || token != expected {
-		http.Error(w, "unauthorized", http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	var req calcRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
 		return
 	}
 
 	if req.CalculationID == 0 || req.CallbackURL == "" {
-		http.Error(w, "calculation_id and callback_url are required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "calculation_id and callback_url are required"})
 		return
 	}
 
 	// Обрабатываем асинхронно
 	go handleAsync(req)
 
-	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"message": "scheduled",
-	})
+	c.JSON(http.StatusAccepted, gin.H{"message": "scheduled"})
 }
 
 func handleAsync(req calcRequest) {
